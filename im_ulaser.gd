@@ -87,7 +87,7 @@ func _physics_process(delta: float):
 			mat.shading_mode = StandardMaterial3D.SHADING_MODE_UNSHADED
 			mi.material_override = mat
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			get_parent().get_parent().add_child.call_deferred(mi)
+			get_parent().get_parent().add_child(mi)
 			horizon_visuals.append(mi)
 
 	# Try to find the road under us
@@ -185,16 +185,22 @@ func _physics_process(delta: float):
 
 	# --- 5. Update HUD Overlay ---
 	var current_steer = 0.0
-	var udp_node = get_tree().get_first_node_in_group("network_transceivers")
-	if udp_node and "steering_input" in udp_node:
-		current_steer = udp_node.steering_input
+	var transport: Node = null
+	for node in get_tree().get_nodes_in_group("network_transceivers"):
+		if node.has_method("send_data"):
+			transport = node
+			break
+
+	if transport and "steering_input" in transport:
+		current_steer = transport.steering_input
 		steer_history.append(current_steer)
 		if steer_history.size() > 1000: steer_history.pop_front()
 		
 	_update_hud(state_array, scan_data, lane_data.slice(0, 64), cte, current_steer)
 
-	# --- 6. Send to UDP Manager ---
-	get_tree().call_group("network_transceivers", "send_data", buffer)
+	# --- 6. Send to transport (UDP on desktop, WebSocket on web) ---
+	if transport:
+		transport.send_data(buffer)
 
 var hud_instance: CanvasLayer = null
 

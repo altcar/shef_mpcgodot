@@ -1,8 +1,14 @@
 extends Node3D
 
-# We will look for the UDP node to get commands
+# We will look for the transport node to get commands
 # If not using Autoload, we find it in the tree
-@onready var udp_node = get_tree().get_first_node_in_group("network_transceivers")
+@onready var udp_node = _find_transport()
+
+func _find_transport():
+	for node in get_tree().get_nodes_in_group("network_transceivers"):
+		if node.has_method("send_data"):
+			return node
+	return null
 
 var trail_points = []
 var trail_mesh_instance: MeshInstance3D

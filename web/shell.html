@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+    <title>MPC Godot - Browser Controller</title>
+    <link rel="icon" type="image/png" href="index.icon.png">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0b0d12;
+        }
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #mpc-status {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 20;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.58);
+            color: #7fffd4;
+            font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        #boot {
+            position: fixed;
+            inset: 0;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: #0b0d12;
+            color: #dbe7ff;
+            font: 14px/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
+            transition: opacity 0.25s ease;
+        }
+        #boot.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #boot-title {
+            font-size: 18px;
+            letter-spacing: 0.02em;
+        }
+        #boot-bar {
+            width: min(420px, 80vw);
+            height: 6px;
+            overflow: hidden;
+            border-radius: 3px;
+            background: #1b2333;
+        }
+        #boot-bar > div {
+            width: 0;
+            height: 100%;
+            background: #4fd1c5;
+            transition: width 0.15s ease;
+        }
+        #boot-error {
+            max-width: 70ch;
+            color: #ff6b6b;
+            text-align: center;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="mpc-status">MPC: loading...</div>
+    <div id="boot">
+        <div id="boot-title">Loading Godot + browser MPC...</div>
+        <div id="boot-bar"><div></div></div>
+        <div id="boot-error"></div>
+    </div>
+
+    <!-- The browser fetches the JavaScript MPC controller from the same static site. -->
+    <script src="mpc_controller.js"></script>
+
+    <script src="$GODOT_URL"></script>
+    <script>
+        (function () {
+            "use strict";
+
+            const boot = document.getElementById("boot");
+            const bootBar = document.querySelector("#boot-bar > div");
+            const bootError = document.getElementById("boot-error");
+            const status = document.getElementById("mpc-status");
+
+            function fail(message) {
+                bootError.textContent = message;
+                boot.classList.remove("hidden");
+                console.error(message);
+            }
+
+            function startGodot() {
+                const missing = Engine.getMissingFeatures({ threads: false });
+                if (missing.length !== 0) {
+                    fail("Error: the following features required to run Godot are missing:\n" + missing.join("\n"));
+                    return;
+                }
+
+                const engine = new Engine($GODOT_CONFIG);
+                engine.startGame({
+                    canvasResizePolicy: 2,
+                    onProgress: function (current, total) {
+                        if (current > 0 && total > 0) {
+                            bootBar.style.width = ((100 * current) / total).toFixed(1) + "%";
+                        }
+                    }
+                }).then(function () {
+                    boot.classList.add("hidden");
+                }).catch(function (error) {
+                    fail(String(error));
+                });
+            }
+
+            // The controller script is a normal script tag, so it is already
+            // loaded before this point. If it is missing, Godot still runs and
+            // the transport falls back to the optional WebSocket bridge.
+            if (!window.MPCController) {
+                console.warn("Browser MPC controller not found; falling back to WebSocket transport.");
+            }
+
+            setInterval(function () {
+                if (window.MPC_TRANSPORT === "websocket") {
+                    status.textContent = "MPC: TCP bridge";
+                    return;
+                }
+                const controller = window.MPCController;
+                if (!controller) {
+                    status.textContent = "MPC: no browser controller";
+                    return;
+                }
+                status.textContent =
+                    "MPC JS | pkts " + controller.getPackets() +
+                    " | cte " + controller.getLastCte().toFixed(2) + " m" +
+                    " | steer " + controller.getSteering().toFixed(2);
+            }, 500);
+
+            startGodot();
+        }());
+    </script>
+</body>
+</html>

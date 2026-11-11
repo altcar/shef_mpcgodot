@@ -1,3 +1,10 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Exported Web build (regenerate with the export command in README_WEB_TCP.md)
+/build/
