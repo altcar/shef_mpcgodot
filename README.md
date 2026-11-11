@@ -1,5 +1,9 @@
 # shef_mpcgodot — browser-only MPC simulation
 
+[![Deploy browser MPC to GitHub Pages](https://github.com/altcar/shef_mpcgodot/actions/workflows/pages.yml/badge.svg)](https://github.com/altcar/shef_mpcgodot/actions/workflows/pages.yml)
+
+**Live demo:** https://altcar.github.io/shef_mpcgodot/
+
 Godot lane-following simulation with the NMPC controller ported to JavaScript and
 running **inside the same browser page** as the Godot Web build.
 
